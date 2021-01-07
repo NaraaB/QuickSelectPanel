@@ -1,0 +1,118 @@
+global string $objsets[];
+global proc createSelectionUI(){
+    
+    menuBarLayout;
+    menu -label "Select" -tearOff true;
+        menuItem -label "All"
+                 -annotation "Ctrl+Shift+A"
+                 -command "select -all; writeSelectLog();"   
+                 -echoCommand true;
+        menuItem -label "Deselect All"
+                 -annotation "Alt+D"
+                 -command "select -d;" 
+                 -echoCommand true;
+        menuItem -label "Inverse"
+                 -annotation "Ctrl+Shift+I"
+                 -command "invertSelection; writeSelectLog();" 
+                 -echoCommand true;
+        menuItem -divider true;
+        menuItem -subMenu true
+                 -label "Quick Select Set"
+                 -echoCommand true
+                 -postMenuCommand "quickSelectSet"
+                 setMenu;                 
+        
+        string $layout = `columnLayout -adjustableColumn true`;
+        
+        string $selectionLog = `scrollField -wordWrap false
+                    -text " Vybrane objekty:  \n\ " 
+                    -editable false
+                    -height 350
+                    logField`;
+        setParent ..;
+    setParent ..;   
+     
+}
+
+global proc quickSelectSet(){
+    global string $objSets[];
+    print("\nfrom quickSelectSet()1: ");
+    print($objSets);
+    string $currentSets[] = `menu -q -ia setMenu`;
+    int $currentSetSize = `size $currentSets`;
+    if($currentSetSize > 0){
+        for($mItem in $currentSets){
+            print("\nDeleting "+$mItem+"");
+            deleteUI $mItem;
+        }
+    }
+    clear $objSets;
+    print("\nfrom quickSelectSet()2: ");
+    print($objSets);
+    t_getUserSets();
+    print("\nfrom quickSelectSet()3: ");
+    print($objSets);
+    if(`size $objSets` > 0){
+        for($s in $objSets){                
+            string $cmd = "select "+$s+"; writeSelectLog();";
+            menuItem -label $s
+              		 -command $cmd
+               		 -echoCommand true
+               		 -parent setMenu;
+        }
+    }
+    else{
+         menuItem -label "No quick select sets defined"
+                  -enable false
+                  -parent setMenu;
+    } 
+}
+
+global proc writeSelectLog(){
+    ls -selection;
+    string $selections[]=`ls -selection`;
+    print($selections);
+    for($item in $selections){
+        string $str = "\n" + $item;
+        scrollField -edit -insertText $str
+    	                  -insertionPosition 0
+    	logField;
+    }
+}
+
+global proc t_getUserSets(){
+    global string $objSets[];
+    clear $objSets;
+    string $lsSets[] = `ls -sets`; 
+    int $count = 0;
+    for ($obj in $lsSets){
+        int $outliner = setFilterScript($obj);
+        if ($outliner == 1){ 
+            if(!( ($obj == "defaultLightSet") || ($obj == "defaultObjectSet") ) ){ 
+                $objSets[$count] = $obj;
+                $count +=1;
+            }
+        }
+    }
+    print("\nfrom t_getUserSets()");
+    print($objSets);
+}
+
+global proc selectionDockPanel(){
+    if(`workspaceControl -query -exists selectionDockControl`){
+        deleteUI selectionDockControl;
+    }
+    
+    string $panel = localizedPanelLabel("Channel Box / Layer Editor");
+    string $dockControl = getUIComponentDockControl ($panel, false);   
+    string $label = "Selection";
+
+    workspaceControl
+        -tabToControl $dockControl -1
+        -initialWidth 350
+        -label $label
+        -uiScript "createSelectionUI();"
+    selectionDockControl;
+    
+}
+selectionDockPanel;
